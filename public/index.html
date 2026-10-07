@@ -61,18 +61,11 @@
   </div>
 
   <script>
-    // 1. Supabase 클라이언트 초기화 (실제 URL과 anon key 입력)
+    // Supabase 정보 직접 적용
     const supabaseUrl = 'https://wbsramkkihinbbwfvdhv.supabase.co';
-    const supabaseAnonKey = '여기에_SUPABASE_ANON_KEY를_넣으세요'; // <-- sb_publishable_... 키 복사/붙여넣기
+    const supabaseAnonKey = 'sb_publishable_argHqiur6aAESLaa3meh7g_O6DZp_cZ';
 
-    let supabase = null;
-    try {
-      if (window.supabase) {
-        supabase = window.supabase.createClient(supabaseUrl, supabaseAnonKey);
-      }
-    } catch (e) {
-      console.error('Supabase 초기화 실패:', e);
-    }
+    const supabase = window.supabase.createClient(supabaseUrl, supabaseAnonKey);
 
     // DOM 요소
     const authSection = document.getElementById('auth-section');
@@ -86,7 +79,7 @@
     const memoList = document.getElementById('memo-list');
     const createMemoBtn = document.getElementById('create-memo-btn');
 
-    // 화면 전환 전용 함수
+    // 화면 전환
     function showMemoScreen() {
       authSection.classList.add('hidden');
       memoSection.classList.remove('hidden');
@@ -99,7 +92,7 @@
       if (authStatus) authStatus.textContent = '';
     }
 
-    // 회원가입 버튼 이벤트
+    // 회원가입
     signupBtn.addEventListener('click', async (e) => {
       e.preventDefault();
       const email = emailInput.value.trim();
@@ -110,23 +103,21 @@
         return;
       }
 
-      authStatus.textContent = '회원가입 처리 중...';
+      authStatus.textContent = '회원가입 요청 중...';
 
       try {
-        if (!supabase) throw new Error('Supabase SDK가 로드되지 않았습니다.');
         const { data, error } = await supabase.auth.signUp({ email, password });
-
         if (error) throw error;
 
-        alert('회원가입 성공! 로그인해 주세요.');
-        authStatus.textContent = '회원가입 완료';
+        alert('회원가입 완료! 로그인 버튼을 누르면 접속됩니다.');
+        authStatus.textContent = '회원가입 성공';
       } catch (err) {
         alert('회원가입 실패: ' + err.message);
         authStatus.textContent = '오류: ' + err.message;
       }
     });
 
-    // 로그인 버튼 이벤트
+    // 로그인
     loginBtn.addEventListener('click', async (e) => {
       e.preventDefault();
       const email = emailInput.value.trim();
@@ -140,9 +131,7 @@
       authStatus.textContent = '로그인 중...';
 
       try {
-        if (!supabase) throw new Error('Supabase SDK가 로드되지 않았습니다.');
         const { data, error } = await supabase.auth.signInWithPassword({ email, password });
-
         if (error) throw error;
 
         if (data?.session) {
@@ -155,14 +144,14 @@
       }
     });
 
-    // 로그아웃 이벤트
+    // 로그아웃
     logoutBtn.addEventListener('click', async () => {
-      if (supabase) await supabase.auth.signOut();
+      await supabase.auth.signOut();
       localStorage.removeItem('sb-access-token');
       showAuthScreen();
     });
 
-    // 내 메모 목록 가져오기 API
+    // 메모 조회
     async function fetchMemos() {
       const token = localStorage.getItem('sb-access-token');
       if (!token) return;
@@ -186,7 +175,6 @@
       }
     }
 
-    // 메모 UI 출력
     function renderMemos(memos) {
       if (!memos || memos.length === 0) {
         memoList.innerHTML = '<p>저장된 내 메모가 없습니다.</p>';
@@ -202,7 +190,7 @@
       `).join('');
     }
 
-    // 메모 작성 API
+    // 메모 작성
     createMemoBtn.addEventListener('click', async () => {
       const title = document.getElementById('memo-title').value.trim();
       const body = document.getElementById('memo-body').value.trim();
@@ -233,7 +221,7 @@
       }
     });
 
-    // 메모 삭제 API
+    // 메모 삭제
     async function deleteMemo(id) {
       if (!confirm('삭제하시겠습니까?')) return;
       const token = localStorage.getItem('sb-access-token');
@@ -257,17 +245,15 @@
       });
     }
 
-    // 페이지 로드 시 로그인 세션 유지 체크
+    // 세션 유지 체크
     window.addEventListener('DOMContentLoaded', async () => {
-      if (supabase) {
-        const { data } = await supabase.auth.getSession();
-        if (data?.session) {
-          localStorage.setItem('sb-access-token', data.session.access_token);
-          showMemoScreen();
-          return;
-        }
+      const { data } = await supabase.auth.getSession();
+      if (data?.session) {
+        localStorage.setItem('sb-access-token', data.session.access_token);
+        showMemoScreen();
+      } else {
+        showAuthScreen();
       }
-      showAuthScreen();
     });
   </script>
 </body>
