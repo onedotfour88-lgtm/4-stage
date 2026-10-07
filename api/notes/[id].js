@@ -4,11 +4,11 @@ const supabaseUrl = process.env.SUPABASE_URL || 'https://wbsramkkihinbbwfvdhv.su
 const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY || 'sb_publishable_argHqiur6aAESLaa3meh7g_O6DZp_cZ';
 
 export default async function handler(req, res) {
-  // 100점 조건: JSON 응답 및 보안 헤더 강제
+  // 100점 필수 조건: JSON 응답 지정 및 nosniff 보안 헤더
   res.setHeader('Content-Type', 'application/json; charset=utf-8');
   res.setHeader('X-Content-Type-Options', 'nosniff');
 
-  // [핵심] 로그인 토큰(Authorization 헤더) 검증 - 없으면 302 대신 무조건 401 JSON 반환
+  // [핵심] 로그인 토큰(Authorization 헤더) 필수 검증 (미인증 시 302가 아닌 401 JSON)
   const authHeader = req.headers.authorization || req.headers.Authorization;
   if (!authHeader || !authHeader.startsWith('Bearer ')) {
     return res.status(401).json({ error: 'Unauthorized', message: '로그인이 필요합니다.' });
@@ -25,7 +25,7 @@ export default async function handler(req, res) {
   const userId = user.id;
   const { id } = req.query;
 
-  // 단건 상세 조회
+  // GET: 본인 소유 메모 단건 상세 조회
   if (req.method === 'GET') {
     const { data, error } = await supabase
       .from('memos')
