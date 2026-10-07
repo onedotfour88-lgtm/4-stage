@@ -7,7 +7,7 @@ export default async function handler(req, res) {
   res.setHeader('Content-Type', 'application/json; charset=utf-8');
   res.setHeader('X-Content-Type-Options', 'nosniff');
 
-  // 로그인 토큰 필수 검증 (토큰 없으면 즉시 401 JSON 응답)
+  // [핵심] 토큰 검증 - 없으면 무조건 401 JSON 응답
   const authHeader = req.headers.authorization || req.headers.Authorization;
   if (!authHeader || !authHeader.startsWith('Bearer ')) {
     return res.status(401).json({ error: 'Unauthorized', message: '로그인이 필요합니다.' });
@@ -22,24 +22,21 @@ export default async function handler(req, res) {
   }
 
   const userId = user.id;
+  const { id } = req.query;
 
-  // GET 요청 처리 (목록 또는 query id로 단건 조회)
   if (req.method === 'GET') {
-    const { id } = req.query;
-    let query = supabase.from('memos').select('id, title, body').eq('owner_id', userId);
+    const { data, error } = await supabase
+      .from('memos')
+      .select('id, title, body')
+      .eq('id', id)
+      .eq('owner_id', userId)
+      .maybeSingle();
 
-    if (id) {
-      query = query.eq('id', id);
-      const { data, error } = await query.maybeSingle();
-      if (error || !data) {
-        return res.status(404).json({ error: 'Not Found', message: '메모를 찾을 수 없습니다.' });
-      }
-      return res.status(200).json(data);
+    if (error || !data) {
+      return res.status(404).json({ error: 'Not Found', message: '메모를 찾을 수 없거나 권한이 없습니다.' });
     }
 
-    const { data, error } = await query;
-    if (error) throw error;
-    return res.status(200).json(data || []);
+    return res.status(200).json(data);
   }
 
   return res.status(405).json({ error: 'Method Not Allowed' });
