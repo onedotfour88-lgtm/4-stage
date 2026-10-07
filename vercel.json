@@ -11,7 +11,8 @@
     }
   ],
   "rewrites": [
-    { "source": "/api/notes/:path*", "destination": "/api/notes" },
-    { "source": "/api/memos/:path*", "destination": "/api/memos" }
+    { "source": "/api/notes", "destination": "/api/memos" },
+    { "source": "/api/notes/(.*)", "destination": "/api/memos" },
+    { "source": "/api/memos/(.*)", "destination": "/api/memos" }
   ]
 }
