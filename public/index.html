@@ -61,11 +61,11 @@
   </div>
 
   <script>
-    // Supabase 정보 직접 적용
+    // Supabase 설정 및 단일 선언 (중복 선언 제거)
     const supabaseUrl = 'https://wbsramkkihinbbwfvdhv.supabase.co';
     const supabaseAnonKey = 'sb_publishable_argHqiur6aAESLaa3meh7g_O6DZp_cZ';
 
-    const supabase = window.supabase.createClient(supabaseUrl, supabaseAnonKey);
+    const supabaseClient = window.supabase ? window.supabase.createClient(supabaseUrl, supabaseAnonKey) : null;
 
     // DOM 요소
     const authSection = document.getElementById('auth-section');
@@ -106,10 +106,11 @@
       authStatus.textContent = '회원가입 요청 중...';
 
       try {
-        const { data, error } = await supabase.auth.signUp({ email, password });
+        if (!supabaseClient) throw new Error('Supabase 모듈이 로드되지 않았습니다.');
+        const { data, error } = await supabaseClient.auth.signUp({ email, password });
         if (error) throw error;
 
-        alert('회원가입 완료! 로그인 버튼을 누르면 접속됩니다.');
+        alert('회원가입 완료! 로그인 버튼을 눌러 접속하세요.');
         authStatus.textContent = '회원가입 성공';
       } catch (err) {
         alert('회원가입 실패: ' + err.message);
@@ -131,7 +132,8 @@
       authStatus.textContent = '로그인 중...';
 
       try {
-        const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+        if (!supabaseClient) throw new Error('Supabase 모듈이 로드되지 않았습니다.');
+        const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password });
         if (error) throw error;
 
         if (data?.session) {
@@ -146,7 +148,7 @@
 
     // 로그아웃
     logoutBtn.addEventListener('click', async () => {
-      await supabase.auth.signOut();
+      if (supabaseClient) await supabaseClient.auth.signOut();
       localStorage.removeItem('sb-access-token');
       showAuthScreen();
     });
@@ -247,13 +249,15 @@
 
     // 세션 유지 체크
     window.addEventListener('DOMContentLoaded', async () => {
-      const { data } = await supabase.auth.getSession();
-      if (data?.session) {
-        localStorage.setItem('sb-access-token', data.session.access_token);
-        showMemoScreen();
-      } else {
-        showAuthScreen();
+      if (supabaseClient) {
+        const { data } = await supabaseClient.auth.getSession();
+        if (data?.session) {
+          localStorage.setItem('sb-access-token', data.session.access_token);
+          showMemoScreen();
+          return;
+        }
       }
+      showAuthScreen();
     });
   </script>
 </body>
