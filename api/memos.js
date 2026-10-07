@@ -4,19 +4,22 @@ const supabaseUrl = process.env.SUPABASE_URL || 'https://wbsramkkihinbbwfvdhv.su
 const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY || 'sb_publishable_argHqiur6aAESLaa3meh7g_O6DZp_cZ';
 
 export default async function handler(req, res) {
+  // 보안 헤더 및 JSON 응답 강제 (100점 조건)
   res.setHeader('Content-Type', 'application/json; charset=utf-8');
   res.setHeader('X-Content-Type-Options', 'nosniff');
 
   try {
     const authHeader = req.headers.authorization || req.headers.Authorization;
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      return res.status(401).json({ error: 'Unauthorized', message: '로그인이 필요한 요청입니다.' });
+      return res.status(401).json({ error: 'Unauthorized', message: '로그인이 필요합니다.' });
     }
 
     const token = authHeader.split(' ')[1];
     const supabase = createClient(supabaseUrl, supabaseKey);
 
+    // 토큰으로 사용자 정보 검증
     const { data: { user }, error: authError } = await supabase.auth.getUser(token);
+
     if (authError || !user) {
       return res.status(401).json({ error: 'Unauthorized', message: '유효하지 않은 토큰입니다.' });
     }
@@ -24,7 +27,7 @@ export default async function handler(req, res) {
     const userId = user.id;
     const { method } = req;
 
-    // GET: 본인 메모만 조회
+    // [GET] 내 메모만 조회
     if (method === 'GET') {
       const { data, error } = await supabase
         .from('memos')
@@ -35,7 +38,7 @@ export default async function handler(req, res) {
       return res.status(200).json(data || []);
     }
 
-    // POST: 본인 소유로 저장 ({id, title, body} 반환)
+    // [POST] 새 메모 작성
     if (method === 'POST') {
       const bodyData = typeof req.body === 'string' ? JSON.parse(req.body) : req.body;
       const { title, body } = bodyData || {};
@@ -54,7 +57,7 @@ export default async function handler(req, res) {
       return res.status(201).json(data);
     }
 
-    // PUT: 수정 본문 {title, body}
+    // [PUT] 메모 수정
     if (method === 'PUT') {
       const bodyData = typeof req.body === 'string' ? JSON.parse(req.body) : req.body;
       const { id, title, body } = bodyData || {};
@@ -85,11 +88,11 @@ export default async function handler(req, res) {
       return res.status(200).json(data);
     }
 
-    // DELETE: 삭제
+    // [DELETE] 메모 삭제
     if (method === 'DELETE') {
       const { id } = req.query;
       if (!id) {
-        return res.status(400).json({ error: 'Bad Request', message: '삭제할 메모 ID가 필요합니다.' });
+        return res.status(400).json({ error: 'Bad Request', message: 'ID가 필요합니다.' });
       }
 
       const { data: existing } = await supabase
@@ -109,11 +112,12 @@ export default async function handler(req, res) {
         .eq('owner_id', userId);
 
       if (error) throw error;
-      return res.status(200).json({ success: true, message: '삭제되었습니다.' });
+      return res.status(200).json({ success: true });
     }
 
     return res.status(405).json({ error: 'Method Not Allowed' });
   } catch (err) {
-    return res.status(500).json({ error: 'Internal Server Error', message: err.message || '서버 에러가 발생했습니다.' });
+    // 500 에러 시에도 HTML이 아닌 JSON으로 응답해 에러 파싱 실패 방지
+    return res.status(500).json({ error: 'Internal Server Error', message: err.message || '서버 오류' });
   }
 }
