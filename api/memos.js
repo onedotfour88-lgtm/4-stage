@@ -1,10 +1,10 @@
-import { createClient } from '@supabase/supabase-js';
+const { createClient } = require('@supabase/supabase-js');
 
 const supabaseUrl = process.env.SUPABASE_URL || 'https://wbsramkkihinbbwfvdhv.supabase.co';
 const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY || 'sb_publishable_argHqiur6aAESLaa3meh7g_O6DZp_cZ';
 
-export default async function handler(req, res) {
-  // 보안 헤더 및 JSON 응답 강제 (100점 조건)
+module.exports = async function handler(req, res) {
+  // 100점 보안 헤더 및 JSON 응답 강제
   res.setHeader('Content-Type', 'application/json; charset=utf-8');
   res.setHeader('X-Content-Type-Options', 'nosniff');
 
@@ -17,7 +17,7 @@ export default async function handler(req, res) {
     const token = authHeader.split(' ')[1];
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    // 토큰으로 사용자 정보 검증
+    // 토큰 검증
     const { data: { user }, error: authError } = await supabase.auth.getUser(token);
 
     if (authError || !user) {
@@ -27,7 +27,7 @@ export default async function handler(req, res) {
     const userId = user.id;
     const { method } = req;
 
-    // [GET] 내 메모만 조회
+    // [GET] 내 메모 목록 조회
     if (method === 'GET') {
       const { data, error } = await supabase
         .from('memos')
@@ -38,13 +38,13 @@ export default async function handler(req, res) {
       return res.status(200).json(data || []);
     }
 
-    // [POST] 새 메모 작성
+    // [POST] 새 메모 작성 (URL/본문의 owner_id 무시하고 검증된 userId 사용)
     if (method === 'POST') {
       const bodyData = typeof req.body === 'string' ? JSON.parse(req.body) : req.body;
       const { title, body } = bodyData || {};
 
       if (!title || !body) {
-        return res.status(400).json({ error: 'Bad Request', message: '제목과 내용을 입력해주세요.' });
+        return res.status(400).json({ error: 'Bad Request', message: '제목과 내용을 입력해 주세요.' });
       }
 
       const { data, error } = await supabase
@@ -57,7 +57,7 @@ export default async function handler(req, res) {
       return res.status(201).json(data);
     }
 
-    // [PUT] 메모 수정
+    // [PUT] 메모 수정 (기존 및 변경 소유자 모두 본인인지 검증)
     if (method === 'PUT') {
       const bodyData = typeof req.body === 'string' ? JSON.parse(req.body) : req.body;
       const { id, title, body } = bodyData || {};
@@ -88,7 +88,7 @@ export default async function handler(req, res) {
       return res.status(200).json(data);
     }
 
-    // [DELETE] 메모 삭제
+    // [DELETE] 메모 삭제 (본인 행만 허용)
     if (method === 'DELETE') {
       const { id } = req.query;
       if (!id) {
@@ -117,7 +117,6 @@ export default async function handler(req, res) {
 
     return res.status(405).json({ error: 'Method Not Allowed' });
   } catch (err) {
-    // 500 에러 시에도 HTML이 아닌 JSON으로 응답해 에러 파싱 실패 방지
     return res.status(500).json({ error: 'Internal Server Error', message: err.message || '서버 오류' });
   }
-}
+};
