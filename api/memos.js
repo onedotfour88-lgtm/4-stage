@@ -1,10 +1,9 @@
-const { createClient } = require('@supabase/supabase-js');
+import { createClient } from '@supabase/supabase-js';
 
 const supabaseUrl = process.env.SUPABASE_URL || 'https://wbsramkkihinbbwfvdhv.supabase.co';
 const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY || 'sb_publishable_argHqiur6aAESLaa3meh7g_O6DZp_cZ';
 
-module.exports = async function handler(req, res) {
-  // 보안 헤더 설정 및 JSON 응답 지정
+export default async function handler(req, res) {
   res.setHeader('Content-Type', 'application/json; charset=utf-8');
   res.setHeader('X-Content-Type-Options', 'nosniff');
 
@@ -17,7 +16,7 @@ module.exports = async function handler(req, res) {
     const token = authHeader.split(' ')[1];
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    // 토큰으로 검증된 유저 정보 가져오기
+    // Supabase 자체 인증으로 토큰 검증
     const { data: { user }, error: authError } = await supabase.auth.getUser(token);
 
     if (authError || !user) {
@@ -27,7 +26,6 @@ module.exports = async function handler(req, res) {
     const userId = user.id;
     const { method } = req;
 
-    // [GET] 내 메모만 조회 (WHERE owner_id = userId)
     if (method === 'GET') {
       const { data, error } = await supabase
         .from('memos')
@@ -38,13 +36,15 @@ module.exports = async function handler(req, res) {
       return res.status(200).json(data || []);
     }
 
-    // [POST] 메모 추가 (외부 owner_id 무시하고 토큰의 userId로 지정)
     if (method === 'POST') {
-      const bodyData = typeof req.body === 'string' ? JSON.parse(req.body) : req.body;
+      let bodyData = req.body;
+      if (typeof bodyData === 'string') {
+        try { bodyData = JSON.parse(bodyData); } catch (e) {}
+      }
       const { title, body } = bodyData || {};
 
       if (!title || !body) {
-        return res.status(400).json({ error: 'Bad Request', message: '제목과 내용을 입력해 주세요.' });
+        return res.status(400).json({ error: 'Bad Request', message: '제목과 내용을 입력해주세요.' });
       }
 
       const { data, error } = await supabase
@@ -57,14 +57,12 @@ module.exports = async function handler(req, res) {
       return res.status(201).json(data);
     }
 
-    // [PUT] 메모 수정 (기존 소유권 및 새 소유권 검증)
     if (method === 'PUT') {
-      const bodyData = typeof req.body === 'string' ? JSON.parse(req.body) : req.body;
-      const { id, title, body } = bodyData || {};
-
-      if (!id || !title || !body) {
-        return res.status(400).json({ error: 'Bad Request', message: '필수 값이 누락되었습니다.' });
+      let bodyData = req.body;
+      if (typeof bodyData === 'string') {
+        try { bodyData = JSON.parse(bodyData); } catch (e) {}
       }
+      const { id, title, body } = bodyData || {};
 
       const { data: existing } = await supabase
         .from('memos')
@@ -73,7 +71,7 @@ module.exports = async function handler(req, res) {
         .single();
 
       if (!existing || existing.owner_id !== userId) {
-        return res.status(403).json({ error: 'Forbidden', message: '수정 권한이 없습니다.' });
+        return res.status(403).json({ error: 'Forbidden', message: '권한이 없습니다.' });
       }
 
       const { data, error } = await supabase
@@ -88,13 +86,8 @@ module.exports = async function handler(req, res) {
       return res.status(200).json(data);
     }
 
-    // [DELETE] 메모 삭제 (본인 행만 허용)
     if (method === 'DELETE') {
       const { id } = req.query;
-      if (!id) {
-        return res.status(400).json({ error: 'Bad Request', message: 'ID가 필요합니다.' });
-      }
-
       const { data: existing } = await supabase
         .from('memos')
         .select('owner_id')
@@ -102,7 +95,7 @@ module.exports = async function handler(req, res) {
         .single();
 
       if (!existing || existing.owner_id !== userId) {
-        return res.status(403).json({ error: 'Forbidden', message: '삭제 권한이 없습니다.' });
+        return res.status(403).json({ error: 'Forbidden', message: '권한이 없습니다.' });
       }
 
       const { error } = await supabase
@@ -117,7 +110,6 @@ module.exports = async function handler(req, res) {
 
     return res.status(405).json({ error: 'Method Not Allowed' });
   } catch (err) {
-    // 예외 발생 시에도 HTML 페이지가 아닌 JSON 형식으로 전달하여 파싱 에러 방지
-    return res.status(500).json({ error: 'Internal Server Error', message: err.message || '서버 오류가 발생했습니다.' });
+    return res.status(500).json({ error: 'Internal Server Error', message: err.message || '서버 오류' });
   }
-};
+}
