@@ -1,0 +1,10 @@
+{
+  "allowedRoutes": [
+    "GET /api/memos",
+    "POST /api/memos",
+    "PUT /api/memos",
+    "DELETE /api/memos",
+    "POST /api/ai",
+    "GET /api/threat-intel"
+  ]
+}
