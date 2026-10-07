@@ -1,7 +1,17 @@
 {
+  "headers": [
+    {
+      "source": "/(.*)",
+      "headers": [
+        {
+          "key": "X-Content-Type-Options",
+          "value": "nosniff"
+        }
+      ]
+    }
+  ],
   "rewrites": [
-    { "source": "/api/notes/:id*", "destination": "/api/memos" },
-    { "source": "/api/memos/:id*", "destination": "/api/memos" },
-    { "source": "/api/notes", "destination": "/api/memos" }
+    { "source": "/api/notes/:path*", "destination": "/api/notes" },
+    { "source": "/api/memos/:path*", "destination": "/api/memos" }
   ]
 }

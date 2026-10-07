@@ -4,11 +4,10 @@ const supabaseUrl = process.env.SUPABASE_URL || 'https://wbsramkkihinbbwfvdhv.su
 const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY || 'sb_publishable_argHqiur6aAESLaa3meh7g_O6DZp_cZ';
 
 export default async function handler(req, res) {
-  // 100점 필수 조건: JSON 응답 지정 및 nosniff 보안 헤더
   res.setHeader('Content-Type', 'application/json; charset=utf-8');
   res.setHeader('X-Content-Type-Options', 'nosniff');
 
-  // [핵심] 로그인 토큰(Authorization 헤더) 필수 검증 (미인증 시 302가 아닌 401 JSON)
+  // 로그인 토큰 필수 검증 (토큰 없으면 즉시 401 JSON 응답)
   const authHeader = req.headers.authorization || req.headers.Authorization;
   if (!authHeader || !authHeader.startsWith('Bearer ')) {
     return res.status(401).json({ error: 'Unauthorized', message: '로그인이 필요합니다.' });
@@ -23,22 +22,24 @@ export default async function handler(req, res) {
   }
 
   const userId = user.id;
-  const { id } = req.query;
 
-  // GET: 본인 소유 메모 단건 상세 조회
+  // GET 요청 처리 (목록 또는 query id로 단건 조회)
   if (req.method === 'GET') {
-    const { data, error } = await supabase
-      .from('memos')
-      .select('id, title, body')
-      .eq('id', id)
-      .eq('owner_id', userId)
-      .maybeSingle();
+    const { id } = req.query;
+    let query = supabase.from('memos').select('id, title, body').eq('owner_id', userId);
 
-    if (error || !data) {
-      return res.status(404).json({ error: 'Not Found', message: '메모를 찾을 수 없거나 권한이 없습니다.' });
+    if (id) {
+      query = query.eq('id', id);
+      const { data, error } = await query.maybeSingle();
+      if (error || !data) {
+        return res.status(404).json({ error: 'Not Found', message: '메모를 찾을 수 없습니다.' });
+      }
+      return res.status(200).json(data);
     }
 
-    return res.status(200).json(data);
+    const { data, error } = await query;
+    if (error) throw error;
+    return res.status(200).json(data || []);
   }
 
   return res.status(405).json({ error: 'Method Not Allowed' });
